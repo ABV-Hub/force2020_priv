@@ -106,9 +106,23 @@ plt.xlim(0, 300)
 plt.show()
 ```
 
-- [ ] Could be converted into a nice function where the user passes in the percentile values, key values and dataframe
+When all GR curves are plotted on top of each other the plot becomes very difficult to interpret, even after normalisation. The following code can generate a multi-faceted plot where you can view all of the data from all wells at once
+
+```python
+fig, axs = plt.subplots(nrows, 8, figsize=(20,20))
+for (name, df), ax in zip(grouped, axs.flat):
+    sns.distplot(df['GR'], ax=ax)
+    ax.set_xlim(0,300)
+    ax.set_ylim(0,0.03)
+    ax.set_title(name)
+plt.tight_layout()
+```
+
+![Gamma Ray Multi Plot](images/MultiPlot_GR.png))
+
+- [x] Could be converted into a nice function where the user passes in the percentile values, key values and dataframe
 
 # Potential ML Models
 
 - XGBOOST
-- 
+- Neural Network
