@@ -1,5 +1,8 @@
 import pandas as pd
 import numpy as np
+import pickle
+from sklearn.model_selection import train_test_split
+from xgboost.sklearn import XGBClassifier
 
 class Model(object):
     def __init__(self, dataframe):
@@ -15,13 +18,41 @@ class Model(object):
         self.normalise_gr()
         self.calculate_vol_shale()
         self.calculate_synth_bitsize()
-        print(self.workingdf.head())
+        print(self.workingdf.info())
+        print(self.workingdf.describe())
     
     def train_init_from_file(self):
         # TODO: If training data has already been created we can load the pickle file
         pass
 
     def test_init(self):
+        pass
+    
+    def build_model(self):
+        x_features = ['VSHALE', 'RHOB', 'DTC', 'DEPTH_MD']
+        
+        X = self.workingdf[x_features]
+        y = self.workingdf['FORCE_2020_LITHOFACIES_LITHOLOGY']
+
+        X_train, X_test, y_train, y_test = train_test_split(X, y)
+
+        clf = XGBClassifier()
+        clf.fit(X_train, y_train)
+
+        y_pred_test = clf.predict(X_test)
+
+        
+        score = self.score(y_test.values, y_pred_test)
+        print(f'XEEK Score: {score}')
+
+        pickle.dump(clf, open('model.pkl', 'wb'))
+
+    
+
+    def train_predict(self):
+        pass
+
+    def test_predict(self):
         pass
 
     def normalise_gr(self):
@@ -66,6 +97,9 @@ class Model(object):
         print('Calculating Diff CAL....')
         self.workingdf['DIFF_CAL'] = self.workingdf['CALI'] - self.workingdf['BS_COMB']
         print('Syntehtic BS and Differential Caliper Calculations Complete!')
+    
+    def bad_hole_flag(self):
+        print('Calculating bad hole flag')
 
     def bs_fix(self, bitsize):
         #standard_bs_vals = [26, 17.5, 17, 14.75, 12.5, 12.25, 9.875, 8.5, 8.375, 6.5, 6]
@@ -139,4 +173,4 @@ y = Model(x)
 
 y.test()
 y.train_init()
-
+y.build_model()
