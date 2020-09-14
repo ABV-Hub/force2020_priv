@@ -86,7 +86,7 @@ df_gr['95_PERC'] = df_gr['WELL'].map(percentile_95)
 percentile_05 = df_gr.groupby('WELL')['GR'].quantile(0.05)
 df_gr['05_PERC'] = df_gr['WELL'].map(percentile_05)
 
-# Identify a key well
+# Key well: 
 key_well_low = 31.185694
 key_well_high = 174.556263
 
@@ -119,6 +119,12 @@ plt.tight_layout()
 ```
 
 ![Gamma Ray Multi Plot](images/MultiPlot_GR.png))
+
+When vieiwing the lithology crossplots, a number of values for GR are in excess of 500, which could be bad data or potentially hot shales.
+
+Number of points:
+>500 : 72  
+>300 : 960
 
 - [x] Could be converted into a nice function where the user passes in the percentile values, key values and dataframe
 

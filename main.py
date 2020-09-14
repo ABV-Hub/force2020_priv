@@ -37,6 +37,16 @@ def bs_fix(bitsize):
     else:
         return np.nan
 
+def vol_shale(clean, shale, curve):
+    vshale = (curve - clean) / (shale - clean)
+    if vshale > 1:
+        vshale = 1
+
+    if vshale < 0:
+        vshale = 0
+    
+    return vshale
+
 def gardners_equation(curve, target='RHOB', dtc_units='ft_s'):
     a_metric = 0.31 #m/s
     a_imperial = 0.23 #ft/s
@@ -95,10 +105,13 @@ working['95_PERC'] = working['WELL'].map(percentile_95)
 percentile_05 = working.groupby('WELL')['GR'].quantile(0.05)
 working['05_PERC'] = working['WELL'].map(percentile_05)
 
-# Key Well High and Low TODO: Check which well
-key_well_low = 31.185694
-key_well_high = 174.556263
+# Key Well High and Low
+# 35/9-5 shows a nice distribution for shale and sand
+key_well_low = 50.822391
+key_well_high = 131.688494
 working['GR_NORM'] = working.apply(lambda x: normalise(x['GR'], key_well_low, key_well_high, x['05_PERC'], x['95_PERC']), axis=1)
+
+working['VSHALE'] = working.apply(lambda x: vol_shale(50.822391, 131.688494, x['GR_NORM']), axis=1)
 
 print(working)
 print(f'Normalising Complete')
