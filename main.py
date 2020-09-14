@@ -5,6 +5,10 @@ import seaborn as sns
 from sklearn.model_selection import train_test_split
 import xgboost
 
+# Supress chained pandas warnings
+import pandas as pd
+pd.options.mode.chained_assignment = None  # default='warn'
+
 def normalise(curve, ref_low, ref_high, well_low, well_high):
     
     norm = ref_low + ((ref_high - ref_low) * ((curve - well_low) / (well_high - well_low)))
@@ -91,15 +95,19 @@ lithology_numbers = {30000: 0,
                  99000: 9,
                  90000: 10,
                  93000: 11}
-                 
+
+# Map the lithology numbers to new numbers between 0 and 11
 data['FORCE_2020_LITHOFACIES_LITHOLOGY'] = data['FORCE_2020_LITHOFACIES_LITHOLOGY'].map(lithology_numbers)
 
 print(columns)
 
-working = data[['WELL', 'DEPTH_MD', 'CALI', 'RDEP', 'RMED', 'DRHO', 'GR', 'NPHI', 'PEF', 'DTC', 'SP', 'BS', 'Z_LOC', 'X_LOC', 'Y_LOC', 'FORCE_2020_LITHOFACIES_CONFIDENCE', 'FORCE_2020_LITHOFACIES_LITHOLOGY']]
+# Create our working data frame. A large number of the curves have significant null values and won't be easy to repair.
+# Initially we will drop these.
+working = data[['WELL', 'DEPTH_MD', 'CALI', 'RDEP', 'RMED', 'DRHO', 'GR', 'NPHI', 'PEF', 'DTC',
+ 'SP', 'BS', 'Z_LOC', 'X_LOC', 'Y_LOC', 'FORCE_2020_LITHOFACIES_CONFIDENCE', 'FORCE_2020_LITHOFACIES_LITHOLOGY']]
 
 # Normalise GR data
-print(f'Normalising')
+
 percentile_95 = working.groupby('WELL')['GR'].quantile(0.95)
 working['95_PERC'] = working['WELL'].map(percentile_95)
 percentile_05 = working.groupby('WELL')['GR'].quantile(0.05)
@@ -107,15 +115,56 @@ working['05_PERC'] = working['WELL'].map(percentile_05)
 
 # Key Well High and Low
 # 35/9-5 shows a nice distribution for shale and sand
+print(f'Normalising Gamma Ray.....')
 key_well_low = 50.822391
 key_well_high = 131.688494
 working['GR_NORM'] = working.apply(lambda x: normalise(x['GR'], key_well_low, key_well_high, x['05_PERC'], x['95_PERC']), axis=1)
 
+print(f'Normalising Gamma Ray Complete....')
+print(f'Calculating VShale......')
+
 working['VSHALE'] = working.apply(lambda x: vol_shale(50.822391, 131.688494, x['GR_NORM']), axis=1)
+print(f'Calculating VShale Complete......')
 
-print(working)
-print(f'Normalising Complete')
+# Fixing bitsize due to "odd" bitsize values, some look interpolated others don't make sense
+print('Fixing Existing Bitsize (BS) Curve.....')
+working['BS_FIX'] = working.apply(lambda x: bs_fix(x.loc['BS']), axis=1)
 
+# This is an attempt to create a synthetic bitsize curve based on a rolling average of the CALI curve
+print('Creating Synthetic Bitsize From CALI.....')
+working['CALI_R_MEAN'] = working['CALI'].rolling(10).mean()
+working['BS_FROM_CALI'] = working.apply(lambda x: bs_fix(x.loc['CALI']), axis=1)
+
+# Combine the Bitsize curves
+print('Combining Existing Bitsize and Fixed Bitsize Curves')
+working['BS_COMB']=working['BS_FIX']
+working['BS_COMB'].fillna(working['BS_FROM_CALI'], inplace=True)
+
+# Create a new differential caliper. Existing one had poor coverage
+print('Calculating Diff CAL')
+working['DIFF_CAL']=working['CALI'] - working['BS_COMB']
+
+#Calculate a bad hole flag, where caliper is greater than 2" over Bitsize
+# TODO: Introduce DRHO into the Bad Hole Calculation
+print('Calculating Bad Hole Flag.....')
+working['BADHOLE_CAL'] = np.where(working['DIFF_CAL']>=2, 1, 0)
+working['BADHOLE_CAL'].value_counts().plot(kind='bar')
+plt.show()
+
+# Fix missing values in Density and DTC based on Gardners Equation
+
+
+# If gaps are still present then fill in with the trend curves
+print('Creating RHOB and DTC Trend Curves.....')
+working['TVD'] = working['Z_LOC'] * -1
+
+# One Hot Encoder for Group?
+
+print(working.head())
+
+
+# Create initial training subset
+# DEPT_MD, TVD, GR, DTC, RHOB, BADHOLE, VSHALE
 
 
 # Load Data
