@@ -135,6 +135,6 @@ Number of points:
 
 # Scoring
 
-| Submission | Description                               | ML Model | Inputs                     | Test Score | Open Test Score | Rank    |
-|------------|-------------------------------------------|----------|----------------------------|------------|-----------------|---------|
-| 1          | Model with VShale, Fixed RHOB and BitSize | XGBoost  | VSHALE, RHOB_FIX, DTC, TVD | -0.51681   | -0.7166         | 37 / 52 |
+| Date       | Submission | Description                               | ML Model | Inputs                     | Test Score | Open Test Score | Rank    |
+|------------|------------|-------------------------------------------|----------|----------------------------|------------|-----------------|---------|
+| 14/11/2020 | 1          | Model with VShale, Fixed RHOB and BitSize | XGBoost  | VSHALE, RHOB_FIX, DTC, TVD | -0.51681   | -0.7166         | 37 / 52 |
