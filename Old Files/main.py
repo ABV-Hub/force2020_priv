@@ -73,16 +73,6 @@ def gardners_equation_rhob(curve):
 
     return rhob
 
-    # if target.lower()=='rhob' and dtc_units=='ft_s': # calculating RHOB from DTC
-    #     vp = 1000000 / curve
-    #     rhob = a_imperial* (vp**b)
-    # elif target.lower()=='rhob' and dtc_units=='m_s':
-    #     vp = 1000000 / curve
-    #     rhob = a_metric* (vp**b)
-    # elif target.lower()=='dtc' and dtc_units=='ft_s':
-    #     vp = 1000000 / curve
-    #     rhob = a_imperial* (vp**b)
-
 def score(y_true, y_pred):
     S = 0.0
     y_true = y_true.astype(int)
