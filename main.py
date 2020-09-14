@@ -51,19 +51,37 @@ def vol_shale(clean, shale, curve):
     
     return vshale
 
-def gardners_equation(curve, target='RHOB', dtc_units='ft_s'):
+def gardners_equation_rhob(curve):
+    """Simplified Gardners Equation
+
+    Parameters
+    ----------
+    curve :
+        Compressional Slowness
+
+    Returns
+    -------
+    float
+        Computed RHOB from Gardner's Equation
+    """
     a_metric = 0.31 #m/s
     a_imperial = 0.23 #ft/s
     b = 0.25
-    if target.lower()=='rhob' and dtc_units=='ft_s': # calculating RHOB from DTC
-        vp = 1000000 / curve
-        rhob = a_imperial* (vp**b)
-    elif target.lower()=='rhob' and dtc_units=='m_s':
-        vp = 1000000 / curve
-        rhob = a_metric* (vp**b)
-    elif target.lower()=='dtc' and dtc_units=='ft_s':
-        vp = 1000000 / curve
-        rhob = a_imperial* (vp**b)
+    
+    vp = 1000000 / curve 
+    rhob = a_imperial * (vp** b)
+
+    return rhob
+
+    # if target.lower()=='rhob' and dtc_units=='ft_s': # calculating RHOB from DTC
+    #     vp = 1000000 / curve
+    #     rhob = a_imperial* (vp**b)
+    # elif target.lower()=='rhob' and dtc_units=='m_s':
+    #     vp = 1000000 / curve
+    #     rhob = a_metric* (vp**b)
+    # elif target.lower()=='dtc' and dtc_units=='ft_s':
+    #     vp = 1000000 / curve
+    #     rhob = a_imperial* (vp**b)
 
 def score(y_true, y_pred):
     S = 0.0
@@ -73,10 +91,12 @@ def score(y_true, y_pred):
         S -= A[y_true[i], y_pred[i]]
     return S/y_true.shape[0]
 
-
+def missingvals_plot(dataframe):
+    pass
 
 
 data = pd.read_csv('./data/train.csv', sep=';')
+
 print(data.head())
 columns = data.columns
 A = np.load('penalty_matrix.npy')
@@ -103,9 +123,11 @@ print(columns)
 
 # Create our working data frame. A large number of the curves have significant null values and won't be easy to repair.
 # Initially we will drop these.
-working = data[['WELL', 'DEPTH_MD', 'CALI', 'RDEP', 'RMED', 'DRHO', 'GR', 'NPHI', 'PEF', 'DTC',
+working = data[['WELL', 'DEPTH_MD', 'CALI', 'RDEP', 'RMED', 'DRHO', 'GR', 'RHOB', 'NPHI', 'PEF', 'DTC',
  'SP', 'BS', 'Z_LOC', 'X_LOC', 'Y_LOC', 'FORCE_2020_LITHOFACIES_CONFIDENCE', 'FORCE_2020_LITHOFACIES_LITHOLOGY']]
+ 
 
+ 
 # Normalise GR data
 
 percentile_95 = working.groupby('WELL')['GR'].quantile(0.95)
@@ -157,6 +179,14 @@ plt.show()
 # If gaps are still present then fill in with the trend curves
 print('Creating RHOB and DTC Trend Curves.....')
 working['TVD'] = working['Z_LOC'] * -1
+working['RHOB_GARD'] = working.apply(lambda x: gardners_equation_rhob(x.loc['DTC']), axis=1)
+working['RHOB_FIX'] = working['RHOB']
+working['RHOB_FIX'].fillna(working['RHOB_GARD'], inplace=True) # Not convinced this is working yet
+
+plt.scatter(working['RHOB'], working['RHOB_FIX'], color='red', marker='.')
+plt.xlim(1.5, 3)
+plt.ylim(1.5 ,3)
+plt.show()
 
 # One Hot Encoder for Group?
 
@@ -164,7 +194,8 @@ print(working.head())
 
 
 # Create initial training subset
-# DEPT_MD, TVD, GR, DTC, RHOB, BADHOLE, VSHALE
+training_data = working[['WELL', 'TVD', 'BADHOLE_CAL', 'RDEP', 'VSHALE', 'RHOB_FIX', 'DTC', 'FORCE_2020_LITHOFACIES_LITHOLOGY']]
+training_data.to_pickle('initial_training_data')
 
 
 # Load Data
