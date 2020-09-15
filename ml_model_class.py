@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import pickle
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
 from xgboost.sklearn import XGBClassifier
 
 class Model(object):
@@ -26,25 +27,38 @@ class Model(object):
         pass
 
     def test_init(self):
-        pass
+        self.workingdf = self.df.loc[:,['WELL', 'DEPTH_MD', 'CALI', 'RDEP', 'RMED', 'DRHO', 'GR', 'RHOB', 'NPHI', 'PEF', 'DTC', 'SP', 'BS', 'Z_LOC', 'X_LOC', 'Y_LOC']]
+        # self.lithology_conversion(0)
+        self.normalise_gr()
+        self.calculate_vol_shale()
+        self.calculate_synth_bitsize()
+        print(self.workingdf.info())
+        print(self.workingdf.describe())
     
     def build_model(self):
         x_features = ['VSHALE', 'RHOB', 'DTC', 'DEPTH_MD']
+        print('Creating training set.....')
+        training_data = self.workingdf.loc[:,['VSHALE', 'RHOB', 'DTC', 'DEPTH_MD', 'FORCE_2020_LITHOFACIES_LITHOLOGY']]
+        training_data.to_pickle('model_training_data')
         
-        X = self.workingdf[x_features]
-        y = self.workingdf['FORCE_2020_LITHOFACIES_LITHOLOGY']
+        X = training_data[x_features]
+        y = training_data['FORCE_2020_LITHOFACIES_LITHOLOGY']
 
-        X_train, X_test, y_train, y_test = train_test_split(X, y)
-
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+        print('Fitting the classifier.....')
         clf = XGBClassifier()
         clf.fit(X_train, y_train)
 
+        print('Predicting on X_test.....')
         y_pred_test = clf.predict(X_test)
 
-        
-        score = self.score(y_test.values, y_pred_test)
-        print(f'XEEK Score: {score}')
+        print('Scoring the classifier.....')
+        accuracy = accuracy_score(y_test, y_pred_test)
+        xeek_score = self.score(y_test.values, y_pred_test)
+        print(f'Accuracy: {accuracy * 100}%')
+        print(f'XEEK Score: {xeek_score}')
 
+        
         pickle.dump(clf, open('model.pkl', 'wb'))
 
     
@@ -53,7 +67,36 @@ class Model(object):
         pass
 
     def test_predict(self):
-        pass
+        lithology_numbers = {30000: 0,
+                 65030: 1,
+                 65000: 2,
+                 80000: 3,
+                 74000: 4,
+                 70000: 5,
+                 70032: 6,
+                 88000: 7,
+                 86000: 8,
+                 99000: 9,
+                 90000: 10,
+                 93000: 11}
+
+        #df = pd.read_csv()
+        model = pickle.load(open('model.pkl', 'rb'))
+
+        # print(df.head())
+        # print(model)
+
+
+        open_test_features = self.workingdf[['VSHALE', 'RHOB', 'DTC', 'DEPTH_MD']]
+        print(open_test_features.head())
+
+        test_prediction = model.predict(open_test_features)
+        print(open_test_features)
+
+        category_to_lithology = {y:x for x,y in lithology_numbers.items()}
+        test_prediction_for_submission = np.vectorize(category_to_lithology.get)(test_prediction)
+
+        np.savetxt('test_predictions.csv', test_prediction_for_submission, header='lithology', comments='', fmt='%i')
 
     def normalise_gr(self):
         percentile_95 = self.workingdf.groupby('WELL')['GR'].quantile(0.95)
@@ -139,7 +182,7 @@ class Model(object):
         return vshale
 
     def lithology_conversion(self, direction='0'):
-
+        # Lithology numbers could be extracted out to a class level dictionary
         lithology_numbers = {30000: 0,
                  65030: 1,
                  65000: 2,
@@ -167,10 +210,16 @@ class Model(object):
 
 import pandas as pd
 
-x = pd.read_csv('data/train.csv', sep=';')
+train_data = pd.read_csv('data/train.csv', sep=';')
+test_data = pd.read_csv('data/test.csv', sep=';')
 
-y = Model(x)
+# y = Model(x)
 
-y.test()
-y.train_init()
-y.build_model()
+# y.test()
+# y.train_init()
+# y.build_model()
+
+
+test_model = Model(test_data)
+test_model.test_init()
+test_model.test_predict()
