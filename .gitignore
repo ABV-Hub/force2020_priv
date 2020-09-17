@@ -1,3 +1,12 @@
 data/
 .vscode/
 __pycache__
+pickles/
+clean_training_data
+clean_training_data.pkl
+clean_training_data_scaled.pkl
+clean_training_data_scaled
+model_training_data
+model.pkl
+NPHI_RFR_model.pkl
+RHOB_RFR_model.pkl

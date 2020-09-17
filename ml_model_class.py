@@ -4,41 +4,66 @@ import pickle
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 from xgboost.sklearn import XGBClassifier
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import cross_val_score
+from sklearn.ensemble import  RandomForestRegressor
+import matplotlib.pyplot as plt
+
+import missingno
 
 class Model(object):
     def __init__(self, dataframe):
         self.df = dataframe
         self.A = np.load('penalty_matrix.npy')
+
+        self.features =  ['VSHALE', 'RHOB_COMBINED', 'DTC', 'RDEP', 'TVD', 'NPHI_COMBINED', 'PEF','BAAT GP.', 'BOKNFJORD GP.', 'CROMER KNOLL GP.', 'DUNLIN GP.', 'HEGRE GP.', 'NORDLAND GP.', 'ROGALAND GP.', 'ROTLIEGENDES GP.', 'SHETLAND GP.', 'TYNE GP.', 'VESTLAND GP.', 'VIKING GP.', 'ZECHSTEIN GP.']
     
     def test(self):
         print(self.df.head())
     
     def train_init(self):
-        self.workingdf = self.df.loc[:,['WELL', 'DEPTH_MD', 'CALI', 'RDEP', 'RMED', 'DRHO', 'GR', 'RHOB', 'NPHI', 'PEF', 'DTC', 'SP', 'BS', 'Z_LOC', 'X_LOC', 'Y_LOC', 'FORCE_2020_LITHOFACIES_CONFIDENCE', 'FORCE_2020_LITHOFACIES_LITHOLOGY']]
+        self.workingdf = self.df.loc[:,['WELL', 'GROUP', 'DEPTH_MD', 'CALI', 'RDEP', 'RMED', 'DRHO', 'GR', 'RHOB', 'NPHI', 'PEF', 'DTC', 'SP', 'BS', 'Z_LOC', 'X_LOC', 'Y_LOC', 'FORCE_2020_LITHOFACIES_CONFIDENCE', 'FORCE_2020_LITHOFACIES_LITHOLOGY']]
+        self.encoder()
+        print(self.workingdf.columns)
         self.lithology_conversion(0)
         self.normalise_gr()
         self.calculate_vol_shale()
         self.calculate_synth_bitsize()
+        self.create_tvd()
+        self.workingdf['DTC_FG'] = self.workingdf['DTC'].fillna(method='ffill')
+        self.rhob_fix()
+        self.nphi_fix()
         print(self.workingdf.info())
         print(self.workingdf.describe())
-    
+        self.workingdf.to_pickle('clean_training_data.pkl')
+        self.apply_scaler()
+        self.workingdf.to_pickle('clean_training_data_scaled.pkl')
+
+
     def train_init_from_file(self):
         # TODO: If training data has already been created we can load the pickle file
         pass
 
     def test_init(self):
-        self.workingdf = self.df.loc[:,['WELL', 'DEPTH_MD', 'CALI', 'RDEP', 'RMED', 'DRHO', 'GR', 'RHOB', 'NPHI', 'PEF', 'DTC', 'SP', 'BS', 'Z_LOC', 'X_LOC', 'Y_LOC']]
+        self.workingdf = self.df.loc[:,['WELL', 'GROUP', 'DEPTH_MD', 'CALI', 'RDEP', 'RMED', 'DRHO', 'GR', 'RHOB', 'NPHI', 'PEF', 'DTC', 'SP', 'BS', 'Z_LOC', 'X_LOC', 'Y_LOC']]
         # self.lithology_conversion(0)
+        self.encoder()
         self.normalise_gr()
         self.calculate_vol_shale()
         self.calculate_synth_bitsize()
+        self.create_tvd()
+        self.workingdf['DTC_FG'] = self.workingdf['DTC'].fillna(method='ffill')
+        self.rhob_fix()
+        self.nphi_fix()
+        self.apply_scaler()
         print(self.workingdf.info())
         print(self.workingdf.describe())
     
     def build_model(self):
-        x_features = ['VSHALE', 'RHOB', 'DTC', 'DEPTH_MD']
+        x_features = self.features
         print('Creating training set.....')
-        training_data = self.workingdf.loc[:,['VSHALE', 'RHOB', 'DTC', 'DEPTH_MD', 'FORCE_2020_LITHOFACIES_LITHOLOGY']]
+        training_data = self.workingdf.loc[:,['VSHALE', 'RHOB_COMBINED', 'DTC', 'RDEP', 'TVD', 'NPHI_COMBINED', 'PEF', 'BAAT GP.', 'BOKNFJORD GP.', 'CROMER KNOLL GP.', 'DUNLIN GP.', 'HEGRE GP.', 'NORDLAND GP.', 'ROGALAND GP.', 'ROTLIEGENDES GP.', 'SHETLAND GP.', 'TYNE GP.', 'VESTLAND GP.', 'VIKING GP.', 'ZECHSTEIN GP.', 'FORCE_2020_LITHOFACIES_LITHOLOGY']]
         training_data.to_pickle('model_training_data')
         
         X = training_data[x_features]
@@ -48,6 +73,14 @@ class Model(object):
         print('Fitting the classifier.....')
         clf = XGBClassifier()
         clf.fit(X_train, y_train)
+
+        print('KFold Validation')
+        
+        # Cross fold validation:
+        kfold = StratifiedKFold(n_splits=3, random_state=42)
+        results = cross_val_score(clf, X, y, cv=kfold)
+        print(f'Accuracy from KFOLD: {results.mean()*100}, {results.std()*100}')
+
 
         print('Predicting on X_test.....')
         y_pred_test = clf.predict(X_test)
@@ -61,7 +94,14 @@ class Model(object):
         
         pickle.dump(clf, open('model.pkl', 'wb'))
 
-    
+    def create_tvd(self):
+        """
+        Fill in gaps in the TVD curve. First fill in values using First One Carried Backward,
+        then fill in any remaining gaps with Last One Carried Forward.
+        """
+        self.workingdf['TVD'] = self.workingdf['Z_LOC'] * -1
+        self.workingdf['TVD'].fillna(method='bfill', inplace=True)
+        self.workingdf['TVD'].fillna(method='ffill', inplace=True)
 
     def train_predict(self):
         pass
@@ -87,7 +127,7 @@ class Model(object):
         # print(model)
 
 
-        open_test_features = self.workingdf[['VSHALE', 'RHOB', 'DTC', 'DEPTH_MD']]
+        open_test_features = self.workingdf.loc[:,['VSHALE', 'RHOB_COMBINED', 'DTC', 'RDEP', 'TVD', 'NPHI_COMBINED', 'PEF', 'BAAT GP.', 'BOKNFJORD GP.', 'CROMER KNOLL GP.', 'DUNLIN GP.', 'HEGRE GP.', 'NORDLAND GP.', 'ROGALAND GP.', 'ROTLIEGENDES GP.', 'SHETLAND GP.', 'TYNE GP.', 'VESTLAND GP.', 'VIKING GP.', 'ZECHSTEIN GP.']]
         print(open_test_features.head())
 
         test_prediction = model.predict(open_test_features)
@@ -97,6 +137,53 @@ class Model(object):
         test_prediction_for_submission = np.vectorize(category_to_lithology.get)(test_prediction)
 
         np.savetxt('test_predictions.csv', test_prediction_for_submission, header='lithology', comments='', fmt='%i')
+
+    def apply_scaler(self):
+        print('Applying Scaler.....')
+        col_names = ['VSHALE', 'RHOB', 'DTC', 'RDEP', 'TVD', 'NPHI_COMBINED', 'PEF', 'RHOB_COMBINED']
+        features = self.workingdf[col_names]
+        scaler=StandardScaler().fit(features.values)
+        features = scaler.transform(features.values)
+        self.workingdf[col_names] = features
+        print(self.workingdf)
+        print('Applying Scaler Complete')
+        pickle.dump(scaler, open('scaler.pkl', 'wb'))
+
+    def encoder(self):
+        # encoding_df = self.workingdf.loc[:,['WELL','GROUP']]
+        # dummies = pd.get_dummies(encoding_df.GROUP)
+        # self.workingdf = pd.concat([self.workingdf, dummies.reindex(self.workingdf.index)], axis=1)
+        self.workingdf = pd.concat([self.workingdf, pd.get_dummies(self.workingdf.GROUP)], axis=1)
+
+    def rhob_fix(self):
+        model_RFR = pickle.load(open('RHOB_RFR_model.pkl', 'rb'))
+        X_features_rhob = self.workingdf.loc[:,['TVD', 'VSHALE', 'DTC_FG']].copy()
+        
+        col_names = ['DTC_FG', 'TVD']
+        features_rhob = X_features_rhob[col_names]
+        scaler=StandardScaler().fit(features_rhob.values)
+        features_rhob = scaler.transform(features_rhob.values)
+
+        full_rhob_pred = model_RFR.predict(X_features_rhob)
+        self.workingdf['RHOB_SYNTH'] = full_rhob_pred
+        self.workingdf['RHOB_COMBINED'] = self.workingdf['RHOB']
+        self.workingdf.loc[self.workingdf.DIFF_CAL > 3, "RHOB_COMBINED"]=self.workingdf['RHOB_SYNTH']
+        self.workingdf['RHOB_COMBINED'].fillna(self.workingdf['RHOB_SYNTH'], inplace=True)
+
+    def nphi_fix(self):
+        NPHI_model_RFR = pickle.load(open('NPHI_RFR_model.pkl', 'rb'))
+        X_features_nphi = self.workingdf.loc[:,['DTC_FG', 'TVD', 'VSHALE', 'RHOB_COMBINED']].copy()
+        
+        col_names = ['DTC_FG', 'TVD', 'VSHALE', 'RHOB_COMBINED']
+        features_nphi = X_features_nphi[col_names]
+        scaler=StandardScaler().fit(features_nphi.values)
+        features_nphi = scaler.transform(features_nphi.values)
+
+        full_nphi_pred = NPHI_model_RFR.predict(X_features_nphi)
+        self.workingdf['NPHI_SYNTH'] = full_nphi_pred
+        self.workingdf['NPHI_COMBINED'] = self.workingdf['NPHI']
+        self.workingdf.loc[self.workingdf.DIFF_CAL > 3, "NPHI_COMBINED"]=self.workingdf['NPHI_SYNTH']
+        self.workingdf['NPHI_COMBINED'].fillna(self.workingdf['NPHI_SYNTH'], inplace=True)
 
     def normalise_gr(self):
         percentile_95 = self.workingdf.groupby('WELL')['GR'].quantile(0.95)
@@ -213,12 +300,11 @@ import pandas as pd
 train_data = pd.read_csv('data/train.csv', sep=';')
 test_data = pd.read_csv('data/test.csv', sep=';')
 
-# y = Model(x)
 
-# y.test()
-# y.train_init()
-# y.build_model()
 
+# train_model = Model(train_data)
+# train_model.train_init()
+# train_model.build_model()
 
 test_model = Model(test_data)
 test_model.test_init()

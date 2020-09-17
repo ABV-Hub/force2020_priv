@@ -135,7 +135,19 @@ Number of points:
 
 # Scoring
 
-| Date       | Submission | Description                                                  | ML Model | Inputs                      | Test Score | Accuracy | Open Test Score | Rank    |
-|------------|------------|--------------------------------------------------------------|----------|-----------------------------|------------|----------|-----------------|---------|
-| 14/09/2020 | 1          | Model with VShale, Fixed RHOB and BitSize                    | XGBoost  | VSHALE, RHOB_FIX, DTC, TVD  | -0.51681   |          | -0.7166         | 37 / 52 |
-| 15/09/2020 | 2          | Model with VShale, DEPTH_MD, RHOB, DTC after refactored code | XGBoost  | VSHALE, RHOB, DTC, DEPTH_MD | -0.50806   | 80.7933  | -0.6992         | 36 / 52 |
+- Use `<br>` to add a line break in the markdown
+- Test Score: XEEK Score using train_test_split (70/30)
+- Accuracy: from accuracy_score
+- KFOLD Accuracy: Stratified Kfold cross-validation
+
+| Model | Date       | Submitted | Submission | Description                                                  | ML Model | Inputs                                                            | Test Score | Accuracy | KFOLD Accuracy (Splits) | Open Test Score | Rank    |
+|-------|------------|-----------|------------|--------------------------------------------------------------|----------|-------------------------------------------------------------------|------------|----------|-------------------------|-----------------|---------|
+| 1     | 14/09/2020 | Y         | 1          | Model with VShale, Fixed RHOB and BitSize                    | XGBoost  | VSHALE, RHOB_FIX, DTC, TVD                                        | -0.51681   |          |                         | -0.7166         | 37 / 52 |
+| 2     | 15/09/2020 | Y         | 2          | Model with VShale, DEPTH_MD, RHOB, DTC after refactored code | XGBoost  | VSHALE, RHOB, DTC, DEPTH_MD                                       | -0.50806   | 80.7933  |                         | -0.6992         | 36 / 53 |
+| 3     | 15/09/2020 | N         |            | Added Scaler                                                 | XGBoost  | VSHALE, RHOB, DTC, DEPTH_MD                                       | -0.50666   | 80.85797 |                         | --              |         |
+| 4     | 15/09/2020 | Y         | 3          | Added RDEP                                                   | XGBoost  | VSHALE, RHOB, DTC, DEPTH_MD, RDEP                                 | -0.43384   | 83.5223  |                         | -0.8262         |         |
+| 5     | 15/09/2020 | N         |            | Replaced Depth with TVD                                      | XGBoost  | VSHALE, RHOB, DTC, TVD, RDEP                                      | -0.43222   | 83.5889  |                         | --              |         |
+| 6     | 15/09/2020 | Y         | 4          | Added in unedited NPHI and PEF                               | XGBoost  | VSHALE, RHOB, DTC, TVD, RDEP, NPHI, PEF                           | -0.36345   | 86.1724  |                         | -0.7526         |         |
+| 7     | 15/09/2020 | Y         | 5          | Added dummy variables for GROUP                              | XGBoost  | VSHALE, RHOB, DTC, TVD, RDEP, NPHI, PEF, GROUPS                   | -0.313418  | 88.0357  | 60.72417, 7.07667 (5)   | -0.7093         | 36 / 53 |
+| 8     | 16/09/2020 | N         |            | Combined RHOB with RFR derived RHOB in badhole and nulls     | XGBoost  | VSHALE, RHOB_COMBINED, DTC, TVD, RDEP, NPHI, PEF, GROUPS          | -0.56580   | 78.2768  | 69.86007, 1.66264 (3)   | --              |         |
+| 9     | 16/09/2020 | Y         | 6          | Fixed NPHI and included synthetic data in badhole conditions | XGBoost  | VSHALE, RHOB_COMBINED, NPHI_COMBINED, DTC, TVD, RDEP, PEF, GROUPS | -0.57352   | 77.9561  | 69.52176, 1.75301 (3)   | -0.5894         | 20 / 56 |
