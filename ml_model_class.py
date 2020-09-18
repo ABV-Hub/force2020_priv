@@ -17,7 +17,7 @@ class Model(object):
         self.df = dataframe
         self.A = np.load('penalty_matrix.npy')
 
-        self.features =  ['VSHALE', 'RHOB_COMBINED', 'DTC', 'RDEP', 'TVD', 'NPHI_COMBINED', 'PEF','BAAT GP.', 'BOKNFJORD GP.', 'CROMER KNOLL GP.', 'DUNLIN GP.', 'HEGRE GP.', 'NORDLAND GP.', 'ROGALAND GP.', 'ROTLIEGENDES GP.', 'SHETLAND GP.', 'TYNE GP.', 'VESTLAND GP.', 'VIKING GP.', 'ZECHSTEIN GP.']
+        self.features =  ['VSHALE', 'RHOB_COMBINED', 'DTC', 'TVD', 'NPHI_COMBINED', 'PEF_COMBINED','BAAT GP.', 'BOKNFJORD GP.', 'CROMER KNOLL GP.', 'DUNLIN GP.', 'HEGRE GP.', 'NORDLAND GP.', 'ROGALAND GP.', 'ROTLIEGENDES GP.', 'SHETLAND GP.', 'TYNE GP.', 'VESTLAND GP.', 'VIKING GP.', 'ZECHSTEIN GP.']
     
     def test(self):
         print(self.df.head())
@@ -28,12 +28,14 @@ class Model(object):
         print(self.workingdf.columns)
         self.lithology_conversion(0)
         self.normalise_gr()
+        self.normalise_pef()
         self.calculate_vol_shale()
         self.calculate_synth_bitsize()
         self.create_tvd()
         self.workingdf['DTC_FG'] = self.workingdf['DTC'].fillna(method='ffill')
         self.rhob_fix()
         self.nphi_fix()
+        self.pef_fix()
         print(self.workingdf.info())
         print(self.workingdf.describe())
         self.workingdf.to_pickle('clean_training_data.pkl')
@@ -50,12 +52,14 @@ class Model(object):
         # self.lithology_conversion(0)
         self.encoder()
         self.normalise_gr()
+        self.normalise_pef()
         self.calculate_vol_shale()
         self.calculate_synth_bitsize()
         self.create_tvd()
         self.workingdf['DTC_FG'] = self.workingdf['DTC'].fillna(method='ffill')
         self.rhob_fix()
         self.nphi_fix()
+        self.pef_fix()
         self.apply_scaler()
         print(self.workingdf.info())
         print(self.workingdf.describe())
@@ -63,7 +67,7 @@ class Model(object):
     def build_model(self):
         x_features = self.features
         print('Creating training set.....')
-        training_data = self.workingdf.loc[:,['VSHALE', 'RHOB_COMBINED', 'DTC', 'RDEP', 'TVD', 'NPHI_COMBINED', 'PEF', 'BAAT GP.', 'BOKNFJORD GP.', 'CROMER KNOLL GP.', 'DUNLIN GP.', 'HEGRE GP.', 'NORDLAND GP.', 'ROGALAND GP.', 'ROTLIEGENDES GP.', 'SHETLAND GP.', 'TYNE GP.', 'VESTLAND GP.', 'VIKING GP.', 'ZECHSTEIN GP.', 'FORCE_2020_LITHOFACIES_LITHOLOGY']]
+        training_data = self.workingdf.loc[:,['VSHALE', 'RHOB_COMBINED', 'DTC', 'TVD', 'NPHI_COMBINED', 'PEF_COMBINED', 'BAAT GP.', 'BOKNFJORD GP.', 'CROMER KNOLL GP.', 'DUNLIN GP.', 'HEGRE GP.', 'NORDLAND GP.', 'ROGALAND GP.', 'ROTLIEGENDES GP.', 'SHETLAND GP.', 'TYNE GP.', 'VESTLAND GP.', 'VIKING GP.', 'ZECHSTEIN GP.', 'FORCE_2020_LITHOFACIES_LITHOLOGY']]
         training_data.to_pickle('model_training_data')
         
         X = training_data[x_features]
@@ -127,7 +131,7 @@ class Model(object):
         # print(model)
 
 
-        open_test_features = self.workingdf.loc[:,['VSHALE', 'RHOB_COMBINED', 'DTC', 'RDEP', 'TVD', 'NPHI_COMBINED', 'PEF', 'BAAT GP.', 'BOKNFJORD GP.', 'CROMER KNOLL GP.', 'DUNLIN GP.', 'HEGRE GP.', 'NORDLAND GP.', 'ROGALAND GP.', 'ROTLIEGENDES GP.', 'SHETLAND GP.', 'TYNE GP.', 'VESTLAND GP.', 'VIKING GP.', 'ZECHSTEIN GP.']]
+        open_test_features = self.workingdf.loc[:,['VSHALE', 'RHOB_COMBINED', 'DTC',  'TVD', 'NPHI_COMBINED', 'PEF_COMBINED', 'BAAT GP.', 'BOKNFJORD GP.', 'CROMER KNOLL GP.', 'DUNLIN GP.', 'HEGRE GP.', 'NORDLAND GP.', 'ROGALAND GP.', 'ROTLIEGENDES GP.', 'SHETLAND GP.', 'TYNE GP.', 'VESTLAND GP.', 'VIKING GP.', 'ZECHSTEIN GP.']]
         print(open_test_features.head())
 
         test_prediction = model.predict(open_test_features)
@@ -140,7 +144,7 @@ class Model(object):
 
     def apply_scaler(self):
         print('Applying Scaler.....')
-        col_names = ['VSHALE', 'RHOB', 'DTC', 'RDEP', 'TVD', 'NPHI_COMBINED', 'PEF', 'RHOB_COMBINED']
+        col_names = ['VSHALE', 'RHOB', 'DTC', 'TVD', 'NPHI_COMBINED', 'PEF_COMBINED', 'RHOB_COMBINED']
         features = self.workingdf[col_names]
         scaler=StandardScaler().fit(features.values)
         features = scaler.transform(features.values)
@@ -156,6 +160,7 @@ class Model(object):
         self.workingdf = pd.concat([self.workingdf, pd.get_dummies(self.workingdf.GROUP)], axis=1)
 
     def rhob_fix(self):
+        print('Fixing RHOB.....')
         model_RFR = pickle.load(open('RHOB_RFR_model.pkl', 'rb'))
         X_features_rhob = self.workingdf.loc[:,['TVD', 'VSHALE', 'DTC_FG']].copy()
         
@@ -170,7 +175,26 @@ class Model(object):
         self.workingdf.loc[self.workingdf.DIFF_CAL > 3, "RHOB_COMBINED"]=self.workingdf['RHOB_SYNTH']
         self.workingdf['RHOB_COMBINED'].fillna(self.workingdf['RHOB_SYNTH'], inplace=True)
 
+    def pef_fix(self):
+        print('Fixing PEF.....')
+        PEF_model_RFR = pickle.load(open('model_PEF_RFR.pkl', 'rb'))
+        X_features_pef = self.workingdf.loc[:,['DTC_FG', 'TVD', 'VSHALE', 'RHOB_COMBINED', 'NPHI_COMBINED']].copy()
+        
+        col_names = ['DTC_FG', 'TVD', 'VSHALE', 'RHOB_COMBINED', 'NPHI_COMBINED']
+        features_pef = X_features_pef[col_names]
+        scaler=StandardScaler().fit(features_pef.values)
+        features_pef = scaler.transform(features_pef.values)
+
+        full_pef_pred = PEF_model_RFR.predict(X_features_pef)
+        self.workingdf['PEF_SYNTH'] = full_pef_pred
+        self.workingdf['PEF_COMBINED'] = self.workingdf['PEF_NORM']
+        self.workingdf.loc[self.workingdf.PEF_NORM < 1, "PEF_COMBINED"]=self.workingdf['PEF_SYNTH']
+        self.workingdf.loc[self.workingdf.PEF_NORM > 15, "PEF_COMBINED"]=self.workingdf['PEF_SYNTH']
+
+        self.workingdf['PEF_COMBINED'].fillna(self.workingdf['PEF_SYNTH'], inplace=True)
+
     def nphi_fix(self):
+        print('Fixing NPHI.....')
         NPHI_model_RFR = pickle.load(open('NPHI_RFR_model.pkl', 'rb'))
         X_features_nphi = self.workingdf.loc[:,['DTC_FG', 'TVD', 'VSHALE', 'RHOB_COMBINED']].copy()
         
@@ -198,6 +222,21 @@ class Model(object):
         key_well_high = 131.688494
         self.workingdf['GR_NORM'] = self.workingdf.apply(lambda x: self.normalise(x['GR'], key_well_low, key_well_high, x['05_PERC'], x['95_PERC']), axis=1)
         print('Normalising Gamma Ray Complete!')
+
+    def normalise_pef(self):
+        print('Calculatig PEF Percentiles.....')
+        pef_percentile_95 = self.workingdf.groupby('WELL')['PEF'].quantile(0.95)
+        self.workingdf ['95_PERC_PEF'] = self.workingdf['WELL'].map(pef_percentile_95)
+        pef_percentile_05 = self.workingdf.groupby('WELL')['PEF'].quantile(0.05)
+        self.workingdf ['05_PERC_PEF'] = self.workingdf['WELL'].map(pef_percentile_05)
+
+        # Key Well High and Low
+        # Taking 25/2-7 as a key well
+        print('Normalising PEF.....')
+        key_well_low = 1.603071
+        key_well_high = 6.22167
+        self.workingdf['PEF_NORM'] = self.workingdf.apply(lambda x: self.normalise(x['PEF'], key_well_low, key_well_high, x['05_PERC_PEF'], x['95_PERC_PEF']), axis=1)
+        print('Normalising PEF Complete!')
 
     def normalise(self, curve, ref_low, ref_high, well_low, well_high):
         norm = ref_low + ((ref_high - ref_low) * ((curve - well_low) / (well_high - well_low)))
@@ -301,11 +340,15 @@ train_data = pd.read_csv('data/train.csv', sep=';')
 test_data = pd.read_csv('data/test.csv', sep=';')
 
 
+train = True
 
-# train_model = Model(train_data)
-# train_model.train_init()
-# train_model.build_model()
-
-test_model = Model(test_data)
-test_model.test_init()
-test_model.test_predict()
+if train:
+    print('Training Mode Selected')
+    train_model = Model(train_data)
+    train_model.train_init()
+    train_model.build_model()
+else:
+    print('Testing Mode Selected')
+    test_model = Model(test_data)
+    test_model.test_init()
+    test_model.test_predict()
