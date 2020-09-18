@@ -17,7 +17,7 @@ class Model(object):
         self.df = dataframe
         self.A = np.load('penalty_matrix.npy')
 
-        self.features =  ['VSHALE', 'RHOB_COMBINED', 'DTC', 'TVD', 'NPHI_COMBINED', 'PEF_COMBINED','BAAT GP.', 'BOKNFJORD GP.', 'CROMER KNOLL GP.', 'DUNLIN GP.', 'HEGRE GP.', 'NORDLAND GP.', 'ROGALAND GP.', 'ROTLIEGENDES GP.', 'SHETLAND GP.', 'TYNE GP.', 'VESTLAND GP.', 'VIKING GP.', 'ZECHSTEIN GP.']
+        self.features =  ['VSHALE', 'RHOB_COMBINED', 'DTC_FG', 'TVD', 'NPHI_COMBINED', 'PEF_COMBINED', 'LITH_M', 'LITH_N', 'RDEP', 'BAAT GP.', 'BOKNFJORD GP.', 'CROMER KNOLL GP.', 'DUNLIN GP.', 'HEGRE GP.', 'NORDLAND GP.', 'ROGALAND GP.', 'ROTLIEGENDES GP.', 'SHETLAND GP.', 'TYNE GP.', 'VESTLAND GP.', 'VIKING GP.', 'ZECHSTEIN GP.']
     
     def test(self):
         print(self.df.head())
@@ -27,16 +27,20 @@ class Model(object):
         self.encoder()
         print(self.workingdf.columns)
         self.lithology_conversion(0)
+        print('Dropping lithofacies with confidence value of 3...')
         self.workingdf.drop(self.workingdf[self.workingdf.FORCE_2020_LITHOFACIES_CONFIDENCE == 3].index, inplace=True)
         self.normalise_gr()
         self.normalise_pef()
         self.calculate_vol_shale()
         self.calculate_synth_bitsize()
         self.create_tvd()
+        self.workingdf.loc[(self.workingdf.DTC < 40), 'DTC']= np.nan
+        self.workingdf.loc[(self.workingdf.DTC >= 190), 'DTC']= np.nan
         self.workingdf['DTC_FG'] = self.workingdf['DTC'].fillna(method='ffill')
         self.rhob_fix()
         self.nphi_fix()
         self.pef_fix()
+        self.m_and_n()
         print(self.workingdf.info())
         print(self.workingdf.describe())
         self.workingdf.to_pickle('clean_training_data.pkl')
@@ -47,6 +51,10 @@ class Model(object):
     def train_init_from_file(self):
         # TODO: If training data has already been created we can load the pickle file
         pass
+    
+    def m_and_n(self):
+        self.workingdf['LITH_M'] = ((189 - self.workingdf['DTC_FG'])/ (self.workingdf['RHOB_COMBINED'] - 1)) * 0.01
+        self.workingdf['LITH_N'] = (1 - self.workingdf['NPHI_COMBINED']) / (self.workingdf['RHOB_COMBINED'] - 1)
 
     def test_init(self):
         self.workingdf = self.df.loc[:,['WELL', 'GROUP', 'DEPTH_MD', 'CALI', 'RDEP', 'RMED', 'DRHO', 'GR', 'RHOB', 'NPHI', 'PEF', 'DTC', 'SP', 'BS', 'Z_LOC', 'X_LOC', 'Y_LOC']]
@@ -57,10 +65,13 @@ class Model(object):
         self.calculate_vol_shale()
         self.calculate_synth_bitsize()
         self.create_tvd()
+        self.workingdf.loc[(self.workingdf.DTC < 40), 'DTC']= np.nan
+        self.workingdf.loc[(self.workingdf.DTC >= 190), 'DTC']= np.nan
         self.workingdf['DTC_FG'] = self.workingdf['DTC'].fillna(method='ffill')
         self.rhob_fix()
         self.nphi_fix()
         self.pef_fix()
+        self.m_and_n()
         self.apply_scaler()
         print(self.workingdf.info())
         print(self.workingdf.describe())
@@ -68,7 +79,7 @@ class Model(object):
     def build_model(self):
         x_features = self.features
         print('Creating training set.....')
-        training_data = self.workingdf.loc[:,['VSHALE', 'RHOB_COMBINED', 'DTC', 'TVD', 'NPHI_COMBINED', 'PEF_COMBINED', 'BAAT GP.', 'BOKNFJORD GP.', 'CROMER KNOLL GP.', 'DUNLIN GP.', 'HEGRE GP.', 'NORDLAND GP.', 'ROGALAND GP.', 'ROTLIEGENDES GP.', 'SHETLAND GP.', 'TYNE GP.', 'VESTLAND GP.', 'VIKING GP.', 'ZECHSTEIN GP.', 'FORCE_2020_LITHOFACIES_LITHOLOGY']]
+        training_data = self.workingdf.loc[:,['VSHALE', 'RHOB_COMBINED', 'DTC_FG', 'TVD', 'NPHI_COMBINED', 'PEF_COMBINED', 'LITH_M', 'LITH_N', 'RDEP', 'BAAT GP.', 'BOKNFJORD GP.', 'CROMER KNOLL GP.', 'DUNLIN GP.', 'HEGRE GP.', 'NORDLAND GP.', 'ROGALAND GP.', 'ROTLIEGENDES GP.', 'SHETLAND GP.', 'TYNE GP.', 'VESTLAND GP.', 'VIKING GP.', 'ZECHSTEIN GP.', 'FORCE_2020_LITHOFACIES_LITHOLOGY']]
         training_data.to_pickle('model_training_data')
         
         X = training_data[x_features]
@@ -132,7 +143,7 @@ class Model(object):
         # print(model)
 
 
-        open_test_features = self.workingdf.loc[:,['VSHALE', 'RHOB_COMBINED', 'DTC',  'TVD', 'NPHI_COMBINED', 'PEF_COMBINED', 'BAAT GP.', 'BOKNFJORD GP.', 'CROMER KNOLL GP.', 'DUNLIN GP.', 'HEGRE GP.', 'NORDLAND GP.', 'ROGALAND GP.', 'ROTLIEGENDES GP.', 'SHETLAND GP.', 'TYNE GP.', 'VESTLAND GP.', 'VIKING GP.', 'ZECHSTEIN GP.']]
+        open_test_features = self.workingdf.loc[:,['VSHALE', 'RHOB_COMBINED', 'DTC_FG',  'TVD', 'NPHI_COMBINED', 'PEF_COMBINED', 'LITH_M', 'LITH_N', 'RDEP', 'BAAT GP.', 'BOKNFJORD GP.', 'CROMER KNOLL GP.', 'DUNLIN GP.', 'HEGRE GP.', 'NORDLAND GP.', 'ROGALAND GP.', 'ROTLIEGENDES GP.', 'SHETLAND GP.', 'TYNE GP.', 'VESTLAND GP.', 'VIKING GP.', 'ZECHSTEIN GP.']]
         print(open_test_features.head())
 
         test_prediction = model.predict(open_test_features)
@@ -145,7 +156,7 @@ class Model(object):
 
     def apply_scaler(self):
         print('Applying Scaler.....')
-        col_names = ['VSHALE', 'RHOB', 'DTC', 'TVD', 'NPHI_COMBINED', 'PEF_COMBINED', 'RHOB_COMBINED']
+        col_names = ['VSHALE', 'TVD', 'NPHI_COMBINED', 'PEF_COMBINED', 'RHOB_COMBINED', 'DTC_FG', 'LITH_M', 'LITH_N', 'RDEP']
         features = self.workingdf[col_names]
         scaler=StandardScaler().fit(features.values)
         features = scaler.transform(features.values)
@@ -341,7 +352,7 @@ train_data = pd.read_csv('data/train.csv', sep=';')
 test_data = pd.read_csv('data/test.csv', sep=';')
 
 
-train = True
+train = False
 
 if train:
     print('Training Mode Selected')
