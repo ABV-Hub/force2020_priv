@@ -27,6 +27,7 @@ class Model(object):
         self.encoder()
         print(self.workingdf.columns)
         self.lithology_conversion(0)
+        self.workingdf.drop(self.workingdf[self.workingdf.FORCE_2020_LITHOFACIES_CONFIDENCE == 3].index, inplace=True)
         self.normalise_gr()
         self.normalise_pef()
         self.calculate_vol_shale()
