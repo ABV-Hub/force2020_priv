@@ -17,7 +17,7 @@ class Model(object):
         self.df = dataframe
         self.A = np.load('penalty_matrix.npy')
 
-        self.features =  ['VSHALE', 'RHOB_COMBINED', 'DTC_FG', 'TVD', 'NPHI_COMBINED', 'PEF_COMBINED', 'LITH_M', 'LITH_N', 'RDEP', 'RMED', 'BAAT GP.', 'BOKNFJORD GP.', 'CROMER KNOLL GP.', 'DUNLIN GP.', 'HEGRE GP.', 'NORDLAND GP.', 'ROGALAND GP.', 'ROTLIEGENDES GP.', 'SHETLAND GP.', 'TYNE GP.', 'VESTLAND GP.', 'VIKING GP.', 'ZECHSTEIN GP.']
+        self.features =  ['VSHALE', 'RHOB_COMBINED', 'DTC_FG', 'TVD', 'NPHI_COMBINED', 'PEF_COMBINED', 'RDEP', 'RMED', 'BAAT GP.', 'BOKNFJORD GP.', 'CROMER KNOLL GP.', 'DUNLIN GP.', 'HEGRE GP.', 'NORDLAND GP.', 'ROGALAND GP.', 'ROTLIEGENDES GP.', 'SHETLAND GP.', 'TYNE GP.', 'VESTLAND GP.', 'VIKING GP.', 'ZECHSTEIN GP.']
     
     def test(self):
         print(self.df.head())
@@ -83,7 +83,7 @@ class Model(object):
     def build_model(self):
         x_features = self.features
         print('Creating training set.....')
-        training_data = self.workingdf.loc[:,['VSHALE', 'RHOB_COMBINED', 'DTC_FG', 'TVD', 'NPHI_COMBINED', 'PEF_COMBINED', 'LITH_M', 'LITH_N', 'RDEP', 'RMED', 'BAAT GP.', 'BOKNFJORD GP.', 'CROMER KNOLL GP.', 'DUNLIN GP.', 'HEGRE GP.', 'NORDLAND GP.', 'ROGALAND GP.', 'ROTLIEGENDES GP.', 'SHETLAND GP.', 'TYNE GP.', 'VESTLAND GP.', 'VIKING GP.', 'ZECHSTEIN GP.', 'FORCE_2020_LITHOFACIES_LITHOLOGY']]
+        training_data = self.workingdf.loc[:,['VSHALE', 'RHOB_COMBINED', 'DTC_FG', 'TVD', 'NPHI_COMBINED', 'PEF_COMBINED', 'RDEP', 'RMED', 'BAAT GP.', 'BOKNFJORD GP.', 'CROMER KNOLL GP.', 'DUNLIN GP.', 'HEGRE GP.', 'NORDLAND GP.', 'ROGALAND GP.', 'ROTLIEGENDES GP.', 'SHETLAND GP.', 'TYNE GP.', 'VESTLAND GP.', 'VIKING GP.', 'ZECHSTEIN GP.', 'FORCE_2020_LITHOFACIES_LITHOLOGY']]
         training_data.to_pickle('model_training_data')
         
         X = training_data[x_features]
@@ -147,7 +147,7 @@ class Model(object):
         # print(model)
 
 
-        open_test_features = self.workingdf.loc[:,['VSHALE', 'RHOB_COMBINED', 'DTC_FG',  'TVD', 'NPHI_COMBINED', 'PEF_COMBINED', 'LITH_M', 'LITH_N', 'RDEP', 'RMED','BAAT GP.', 'BOKNFJORD GP.', 'CROMER KNOLL GP.', 'DUNLIN GP.', 'HEGRE GP.', 'NORDLAND GP.', 'ROGALAND GP.', 'ROTLIEGENDES GP.', 'SHETLAND GP.', 'TYNE GP.', 'VESTLAND GP.', 'VIKING GP.', 'ZECHSTEIN GP.']]
+        open_test_features = self.workingdf.loc[:,['VSHALE', 'RHOB_COMBINED', 'DTC_FG',  'TVD', 'NPHI_COMBINED', 'PEF_COMBINED', 'RDEP', 'RMED','BAAT GP.', 'BOKNFJORD GP.', 'CROMER KNOLL GP.', 'DUNLIN GP.', 'HEGRE GP.', 'NORDLAND GP.', 'ROGALAND GP.', 'ROTLIEGENDES GP.', 'SHETLAND GP.', 'TYNE GP.', 'VESTLAND GP.', 'VIKING GP.', 'ZECHSTEIN GP.']]
         print(open_test_features.head())
 
         test_prediction = model.predict(open_test_features)
@@ -160,9 +160,10 @@ class Model(object):
 
     def apply_scaler(self):
         print('Applying Scaler.....')
-        col_names = ['VSHALE', 'TVD', 'NPHI_COMBINED', 'PEF_COMBINED', 'RHOB_COMBINED', 'DTC_FG', 'LITH_M', 'LITH_N', 'RDEP', 'RMED']
+        col_names = ['VSHALE', 'TVD', 'NPHI_COMBINED', 'PEF_COMBINED', 'RHOB_COMBINED', 'DTC_FG', 'RDEP', 'RMED']
         features = self.workingdf[col_names]
-        scaler=StandardScaler().fit(features.values)
+        #scaler=StandardScaler().fit(features.values)
+        scaler = pickle.load(open('scaler.pkl', 'rb'))
         features = scaler.transform(features.values)
         self.workingdf[col_names] = features
         print(self.workingdf)
